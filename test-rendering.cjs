@@ -19,9 +19,9 @@ for(const family of ['mandelbrot','ship','multibrot','phoenix','newton'])for(con
  }
 }
 // Exercise actual renderer cache mapping and invalidation with a synchronous worker double.
-const requests=[],jobs=[],timers=new Map();let timer=0,frameLimit=Infinity;
-const ctx={putImageData(){},drawImage(){}},canvas={width:97,height:73,closest:()=>null,getContext:()=>ctx,setAttribute(){},removeAttribute(){}};
-const box={performance,workerURL:'test',ImageData:class{},tr:k=>k,setTimeout(fn){timers.set(++timer,fn);return timer},clearTimeout:id=>timers.delete(id),document:{createElement:()=>({getContext:()=>ctx})},Worker:class{
+const requests=[],jobs=[],timers=new Map();let timer=0,frameLimit=Infinity,now=0;const paints=[];
+const ctx={putImageData(){},drawImage(...args){paints.push(args)}},canvas={width:97,height:73,closest:()=>null,getContext:()=>ctx,setAttribute(){},removeAttribute(){}};
+const box={performance:{now:()=>now},workerURL:'test',ImageData:class{},tr:k=>k,setTimeout(fn,delay){timers.set(++timer,{fn,delay});return timer},clearTimeout:id=>timers.delete(id),document:{createElement:()=>({getContext:()=>ctx})},Worker:class{
  constructor(){jobs.push(this)}terminate(){}postMessage(d){requests.push(d);const frames=render(d.s,d.index,d.w,d.h,d);this.frames=frames;for(const f of frames.slice(0,frameLimit))this.onmessage({data:f})}
 }};
 vm.createContext(box);vm.runInContext(html.slice(html.indexOf('function cpuRenderer('),html.indexOf('function renderer(')),box);
@@ -42,8 +42,14 @@ vm.createContext(box);vm.runInContext(html.slice(html.indexOf('function cpuRende
  await r.draw(0,{...fractional,i:1024});assert.equal(jobs.at(-1).frames.at(-1).completed,97*73);
  // Preserve only delivered samples if a progressive render is interrupted.
  frameLimit=3;const pending=r.draw(0,{...s,i:2048});const partial=jobs.at(-1).frames.slice(0,3).at(-1);
- r.dispose();assert.equal(await pending,false);
+ assert.equal(paints.length,0,'No coarse preview painted before the first 200 ms');
+ assert.equal(timers.size,1,'Several passes coalesce into one pending update');
+ const [timerId,scheduled]=[...timers.entries()][0];assert.equal(scheduled.delay,200);
+ now=200;timers.delete(timerId);scheduled.fn();
+ assert.equal(paints[0][3],partial.w*partial.step,'Paint the best pass received so far');
+ r.dispose();assert.equal(await pending,false);assert.equal(timers.size,0);
  frameLimit=Infinity;await r.draw(0,{...s,i:2048});
  assert.equal(jobs.at(-1).frames.at(-1).completed,97*73-partial.w*partial.h);
- r.dispose();console.log('PASS: nested full-iteration previews, no duplicate calculations, pan reuse, fractional pan and settings invalidation');
+ assert.equal(timers.size,0,'Final frame cancels pending previews');
+ r.dispose();console.log('PASS: 200 ms preview coalescing, nested full-iteration previews, no duplicate calculations, pan reuse, fractional pan and settings invalidation');
 })().catch(e=>{console.error(e);process.exitCode=1});

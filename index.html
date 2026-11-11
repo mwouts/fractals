@@ -1,4 +1,4 @@
-<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Fractals · Mandelbrot & Julia</title><meta name="description" content="Mandelbrot & Julia — palettes, exploration, PNG & Wikipedia."><style>
+<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="icon" href="favicon.ico" sizes="32x32 64x64"><title>Fractals · Mandelbrot & Julia</title><meta name="description" content="Mandelbrot & Julia — palettes, exploration, PNG & Wikipedia."><style>
 :root{color-scheme:dark;--bg:#0c1019;--panel:#141b28;--line:#293245;--muted:#9caac1;--ink:#edf2fc;--accent:#abbfff}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:14px system-ui,-apple-system,sans-serif}main{max-width:1700px;margin:auto;padding:30px 36px}header{display:flex;justify-content:space-between;gap:20px;align-items:center;margin-bottom:26px}.brand{font-size:12px;letter-spacing:3px;color:var(--accent);text-transform:uppercase}h1{font-size:32px;letter-spacing:-1.2px;font-weight:550;margin:8px 0}p{color:var(--muted);line-height:1.65;margin:6px 0}button,select,input{font:inherit}button,select{border:1px solid var(--line);border-radius:8px;background:#1a2334;color:var(--ink);padding:9px 13px;cursor:pointer}button:hover{border-color:var(--accent);background:#25324c}button:focus-visible,canvas:focus-visible,a:focus-visible,.history-card:focus-visible{outline:2px solid #b9cdff;outline-offset:3px}.primary{background:#b8caff;color:#101729;border:0;font-weight:600}.toolbar{display:flex;gap:20px;align-items:center;flex-wrap:wrap;padding:15px 18px;border:1px solid var(--line);border-radius:12px;margin-bottom:20px;background:var(--panel)}label{display:inline-flex;gap:10px;align-items:center;color:var(--muted)}input[type=color]{width:32px;height:32px;padding:2px;border:1px solid #526079;border-radius:6px;background:none;cursor:pointer}input[type=range]{width:120px;accent-color:var(--accent)}.views{display:grid;grid-template-columns:1fr 1fr;gap:18px}.panel{border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--panel)}.panel-head{padding:17px 18px;display:flex;justify-content:space-between;gap:10px;align-items:center}h2{font-size:18px;font-weight:550;margin:0}.tag{color:var(--muted);font-size:11px;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:4px}.scene{position:relative;background:#05070c;aspect-ratio:1.2;overflow:hidden}canvas{display:block;width:100%;height:100%;touch-action:none;cursor:crosshair}.cross{pointer-events:none;position:absolute;width:20px;height:20px;border:1px solid white;border-radius:50%;transform:translate(-50%,-50%);box-shadow:0 0 0 3px #10142099}.cross:after{content:'';position:absolute;inset:7px;background:white;border-radius:50%}.nav{position:absolute;bottom:12px;right:12px;display:flex;gap:5px}.nav button{background:#121b2cdd;width:33px;padding:6px}.stats{position:absolute;left:14px;bottom:16px;font-size:11px;color:#d2dbee;background:#0c1019bb;padding:4px 7px;border-radius:4px;pointer-events:none}.equation{padding:17px 18px;border-top:1px solid var(--line)}.formula{font-family:Georgia,serif;font-size:23px;letter-spacing:.4px;margin:4px 0 8px}.equation p{font-size:12px}.foot{display:flex;gap:20px;justify-content:space-between;align-items:center;margin:18px 0}.c-value{font:14px ui-monospace,monospace;color:#d8e4ff}.history{margin-top:24px;border-top:1px solid var(--line);padding-top:20px}.history-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}.history-list{display:flex;gap:8px;overflow-x:auto;padding-bottom:8px}.history-list button{min-width:150px;text-align:left;font-size:12px}.history-card{min-width:150px;text-align:left;font-size:12px;border:1px solid var(--line);border-radius:8px;background:#1a2334;color:var(--ink);cursor:pointer}.history-card:hover{border-color:var(--accent);background:#25324c}.history-card .plot-title{display:block;user-select:all;cursor:text}.history-card small{user-select:text;cursor:text}.history-list small{display:block;color:var(--muted);margin-top:6px}.swatch{display:block;height:3px;border-radius:5px;margin-bottom:8px}.notes{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:23px}.notes p{font-size:12px}.notes strong{color:#d6e0f2}#notice{font-size:12px;color:#c2d2ff;min-height:20px}details{margin-top:16px;color:var(--muted);font-size:12px}summary{cursor:pointer}code{word-break:break-all;display:block;margin:10px 0;color:#c2d2ff}.small{font-size:12px;padding:7px 10px}@media(max-width:800px){main{padding:22px 16px}.views,.notes{grid-template-columns:1fr}header{align-items:start}h1{font-size:27px}.toolbar{gap:12px}.foot{align-items:start;flex-direction:column}.scene{aspect-ratio:1.15}}
 
 .panel{min-width:0}.scene{aspect-ratio:6/5;min-height:0;isolation:isolate}.plane{touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;position:absolute;inset:0;width:100%;height:100%}.gesture-layer{position:absolute;inset:0;transform-origin:0 0}.plane canvas{position:absolute;inset:0;width:100%;height:100%}.scene:is(:fullscreen,.expanded){width:100%;height:100vh;height:100dvh;aspect-ratio:auto;background:#03050a}
@@ -120,7 +120,7 @@ function cpuWorker(){
 const workerURL=URL.createObjectURL(new Blob(['('+cpuWorker.toString()+')()'],{type:'text/javascript'}));
 function cpuRenderer(canvas){
  const ctx=canvas.getContext('2d'),plane=canvas.closest('.plane');
- let worker=null,cancel=null,busyTimer=null,spinner=null,ring=null,label=null,detail=null,cache=null;
+ let worker=null,cancel=null,busyTimer=null,previewTimer=null,spinner=null,ring=null,label=null,detail=null,cache=null;
  if(plane){
   spinner=document.createElement('span');spinner.className='render-spinner';spinner.hidden=true;
   spinner.setAttribute('role','progressbar');spinner.setAttribute('aria-valuemin','0');spinner.setAttribute('aria-valuemax','100');
@@ -128,7 +128,7 @@ function cpuRenderer(canvas){
   label=document.createElement('span');detail=document.createElement('span');detail.className='render-detail';
   spinner.append(ring,label,detail);plane.append(spinner);
  }
- function clearBusy(){clearTimeout(busyTimer);busyTimer=null;if(spinner)spinner.hidden=true;canvas.removeAttribute('aria-busy')}
+ function clearBusy(){clearTimeout(previewTimer);previewTimer=null;clearTimeout(busyTimer);busyTimer=null;if(spinner)spinner.hidden=true;canvas.removeAttribute('aria-busy')}
  function stop(){worker?.terminate();worker=null;cancel?.(false);cancel=null;clearBusy()}
  return {cpu:true,dispose:stop,draw(index,s){
   stop();
@@ -153,7 +153,21 @@ function cpuRenderer(canvas){
   const currentCache=cache;
   const known=document.createElement('canvas');known.width=w;known.height=h;
   const knownCtx=known.getContext('2d');
-  let phaseStart=performance.now();
+  const phaseStart=performance.now();
+  let lastPaint=phaseStart,pendingPreview=null;
+  function paintPreview(){
+   previewTimer=null;
+   if(worker!==job||!pendingPreview)return;
+   const d=pendingPreview;pendingPreview=null;lastPaint=performance.now();
+   const coarse=document.createElement('canvas');coarse.width=d.w;coarse.height=d.h;
+   coarse.getContext('2d').putImageData(new ImageData(d.pixels,d.w,d.h),0,0);
+   ctx.imageSmoothingEnabled=false;
+   // Preserve the final sample grid, including partial edge blocks.
+   ctx.drawImage(coarse,0,0,d.w*d.step,d.h*d.step);
+   // Keep all calculated samples sharp over the coarse background.
+   knownCtx.putImageData(new ImageData(currentCache.pixels,w,h),0,0);
+   ctx.drawImage(known,0,0);
+  }
   function updateProgress(fraction){
    if(!spinner)return;
    const percent=Math.min(99,Math.floor(fraction*100));
@@ -173,14 +187,8 @@ function cpuRenderer(canvas){
      for(let y=0;y<d.h;y++)for(let x=0;x<d.w;x++){
       const off=(y*d.w+x)*4;currentCache.pixels.set(d.pixels.subarray(off,off+4),(y*d.step*w+x*d.step)*4);
      }
-     const coarse=document.createElement('canvas');coarse.width=d.w;coarse.height=d.h;
-     coarse.getContext('2d').putImageData(new ImageData(d.pixels,d.w,d.h),0,0);
-     ctx.imageSmoothingEnabled=false;
-     // Keep samples on the same final pixel grid, including partial edge blocks.
-     ctx.drawImage(coarse,0,0,d.w*d.step,d.h*d.step);
-     // Keep already calculated pixels sharp while filling gaps with coarse samples.
-     knownCtx.putImageData(new ImageData(currentCache.pixels,w,h),0,0);
-     ctx.drawImage(known,0,0);
+     pendingPreview=d;
+     if(previewTimer===null)previewTimer=setTimeout(paintPreview,Math.max(0,200-(performance.now()-lastPaint)));
     }else{
      currentCache.pixels=d.pixels;
      ctx.putImageData(new ImageData(d.pixels,d.w,d.h),0,0);
