@@ -32,10 +32,15 @@ function cpuWorker(){
   const degree=['multibrot','newton'].includes(family)?(s.degree||3):2;
   const roots=s.roots?.length===degree?s.roots:Array.from({length:degree},(_,k)=>[Math.cos(2*Math.PI*k/degree),Math.sin(2*Math.PI*k/degree)]);
   const memory=Number.isFinite(s.memory)?s.memory:-.5;
-  const colors=s.p.map(x=>x.slice(1).match(/../g).map(x=>parseInt(x,16))),pixels=new Uint8ClampedArray(w*h*4);
+  const colors=s.p.map(x=>x.slice(1).match(/../g).map(x=>parseInt(x,16))),pixels=d.seed||new Uint8ClampedArray(w*h*4);
+  const steps=d.progressive?[64,32,16,8,4,2,1]:[1];
+  let completed=0,total=0;
+  for(let off=3;off<pixels.length;off+=4)if(!pixels[off])total++;
   let lastProgress=performance.now();
-  for(let y=0;y<h;y++){
-   for(let x=0;x<w;x++){
+  for(const step of steps){
+  for(let y=0;y<h;y+=step){
+   for(let x=0;x<w;x+=step){
+   if(pixels[(y*w+x)*4+3])continue;
    const qx=v[0]+((x+.5)/w-.5)*v[2],qy=v[1]+(.5-(y+.5)/h)*v[2]*h/w;
    let zx=index||family==='newton'?qx:0,zy=index||family==='newton'?qy:0;
    const cx=index?s.c[0]:qx,cy=index?s.c[1]:qy;
@@ -96,18 +101,26 @@ function cpuWorker(){
    }
    if(t>=0){let k=Math.floor(t)%3,f=t-Math.floor(t);f=f*f*(3-2*f);for(let j=0;j<3;j++)pixels[off+j]=brightness*Math.sqrt((1-f)*colors[k][j]**2+f*colors[(k+1)%3][j]**2)}
    else{pixels[off]=5;pixels[off+1]=6;pixels[off+2]=11}
-   pixels[off+3]=255;
+   pixels[off+3]=255;completed++;
   }
    const now=performance.now();
-   if(d.progress&&now-lastProgress>=100&&y+1<h){postMessage({progress:(y+1)/h});lastProgress=now}
+   if(d.progress&&now-lastProgress>=100&&y+1<h){postMessage({progress:total?completed/total:1});lastProgress=now}
   }
-  postMessage({pixels,w,h},[pixels.buffer]);
+  if(step>1){
+   const sw=Math.ceil(w/step),sh=Math.ceil(h/step),sample=new Uint8ClampedArray(sw*sh*4);
+   for(let y=0;y<sh;y++)for(let x=0;x<sw;x++){
+    const off=(y*step*w+x*step)*4;sample.set(pixels.subarray(off,off+4),(y*sw+x)*4);
+   }
+   postMessage({pixels:sample,w:sw,h:sh,step,progress:total?completed/total:1},[sample.buffer]);
+  }
+  }
+  postMessage({pixels,w,h,step:1,completed},[pixels.buffer]);
  };
 }
 const workerURL=URL.createObjectURL(new Blob(['('+cpuWorker.toString()+')()'],{type:'text/javascript'}));
 function cpuRenderer(canvas){
  const ctx=canvas.getContext('2d'),plane=canvas.closest('.plane');
- let worker=null,cancel=null,busyTimer=null,spinner=null,ring=null,label=null,detail=null;
+ let worker=null,cancel=null,busyTimer=null,spinner=null,ring=null,label=null,detail=null,cache=null;
  if(plane){
   spinner=document.createElement('span');spinner.className='render-spinner';spinner.hidden=true;
   spinner.setAttribute('role','progressbar');spinner.setAttribute('aria-valuemin','0');spinner.setAttribute('aria-valuemax','100');
@@ -122,7 +135,25 @@ function cpuRenderer(canvas){
   const job=new Worker(workerURL);worker=job;
   canvas.setAttribute('aria-busy','true');
   if(spinner){spinner.setAttribute('aria-label',tr('rendering'));busyTimer=setTimeout(()=>{spinner.hidden=false},500)}
-  const w=canvas.width,h=canvas.height;let preview=w*h>120000,phaseStart=performance.now();
+  const w=canvas.width,h=canvas.height,v=s[index?'j':'m'];
+  const key=JSON.stringify([index,index?s.c:null,s.p,s.t,s.i,s.family,s.degree,s.roots,s.memory,s.nc,w,h,v[2]]);
+  const pixels=new Uint8ClampedArray(w*h*4);
+  if(cache&&cache.key===key){
+   const dx=(v[0]-cache.v[0])*w/v[2],dy=(cache.v[1]-v[1])*w/v[2];
+   const ix=Math.round(dx),iy=Math.round(dy);
+   // Reuse only matching sample grids; never round a fractional pan into place.
+   if(Math.abs(dx-ix)<1e-7&&Math.abs(dy-iy)<1e-7&&Math.abs(ix)<w&&Math.abs(iy)<h){
+    for(let y=Math.max(0,-iy);y<Math.min(h,h-iy);y++){
+     const left=Math.max(0,-ix),right=Math.min(w,w-ix);
+     pixels.set(cache.pixels.subarray(((y+iy)*w+left+ix)*4,((y+iy)*w+right+ix)*4),(y*w+left)*4);
+    }
+   }
+  }
+  cache={key,v:[...v],pixels};
+  const currentCache=cache;
+  const known=document.createElement('canvas');known.width=w;known.height=h;
+  const knownCtx=known.getContext('2d');
+  let phaseStart=performance.now();
   function updateProgress(fraction){
    if(!spinner)return;
    const percent=Math.min(99,Math.floor(fraction*100));
@@ -136,20 +167,29 @@ function cpuRenderer(canvas){
    cancel=resolve;
    job.onmessage=({data:d})=>{
     if(worker!==job)return;
-    if(d.progress!==undefined){if(!preview)updateProgress(d.progress);return}
-    if(preview){
+    if(d.progress!==undefined)updateProgress(d.progress);
+    if(!d.pixels)return;
+    if(d.step>1){
+     for(let y=0;y<d.h;y++)for(let x=0;x<d.w;x++){
+      const off=(y*d.w+x)*4;currentCache.pixels.set(d.pixels.subarray(off,off+4),(y*d.step*w+x*d.step)*4);
+     }
      const coarse=document.createElement('canvas');coarse.width=d.w;coarse.height=d.h;
      coarse.getContext('2d').putImageData(new ImageData(d.pixels,d.w,d.h),0,0);
-     ctx.imageSmoothingEnabled=true;ctx.drawImage(coarse,0,0,w,h);
-     preview=false;phaseStart=performance.now();updateProgress(0);job.postMessage({w,h,index,s,progress:!!spinner});
+     ctx.imageSmoothingEnabled=false;
+     // Keep samples on the same final pixel grid, including partial edge blocks.
+     ctx.drawImage(coarse,0,0,d.w*d.step,d.h*d.step);
+     // Keep already calculated pixels sharp while filling gaps with coarse samples.
+     knownCtx.putImageData(new ImageData(currentCache.pixels,w,h),0,0);
+     ctx.drawImage(known,0,0);
     }else{
+     currentCache.pixels=d.pixels;
      ctx.putImageData(new ImageData(d.pixels,d.w,d.h),0,0);
      job.terminate();worker=null;cancel=null;clearBusy();resolve(true);
     }
    };
    job.onerror=()=>{if(worker!==job)return;job.terminate();worker=null;cancel=null;clearBusy();reject(Error(tr('renderError')))};
-   const pw=Math.min(240,w),ph=Math.max(1,Math.round(pw*h/w));
-   job.postMessage(preview?{w:pw,h:ph,index,s:{...s,i:Math.min(128,s.i)}}:{w,h,index,s,progress:!!spinner});
+   const seed=pixels.slice();
+   job.postMessage({w,h,index,s,progress:!!spinner,progressive:true,seed},[seed.buffer]);
   });
  }};
 }
